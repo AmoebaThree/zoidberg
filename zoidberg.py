@@ -1,15 +1,16 @@
 import subprocess
 
 def update(config):
+    stop(config)
     pass
 
 def run(config):
-    exec_all_svcs(config, 'start')
+    systemctl_all(config, 'start')
 
 def stop(config):
-    exec_all_svcs(config, 'stop')
+    systemctl_all(config, 'stop')
 
-def exec_all_svcs(config, cmd):
+def systemctl_all(config, cmd):
     for svc, cfg in config['services'].items():
         is_system = 'system' in cfg.keys() and cfg['system']
 
