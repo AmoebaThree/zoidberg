@@ -34,6 +34,9 @@ def install(config):
             print('ERR')
 
 def update(config):
+
+    update_hosts = set()
+
     for svc, cfg in config['services'].items():
         is_system = 'system' in cfg.keys() and cfg['system']
 
@@ -46,6 +49,7 @@ def update(config):
             continue
 
         ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        update_hosts.add(ip)
         deploy_tgt = '~/zoidberg-deploy/' + svc
         branch = 'master'
 
@@ -56,6 +60,16 @@ def update(config):
                 [   'ssh', ip,
                     'cd', deploy_tgt, '&&',
                     'git', 'pull'])
+            print('OK')
+        except:
+            print('ERR')
+
+    for ip in update_hosts:
+        try:
+            print('Updating systemctl on ' + ip + ': ', end = '')
+            subprocess.check_output(
+                [   'ssh', ip,
+                    'systemctl', '--user', 'daemon-reload'])
             print('OK')
         except:
             print('ERR')
