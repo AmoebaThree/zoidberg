@@ -34,8 +34,11 @@ On nodes that will be receiveing Zoidberg commands:
 The YAML file specifies:
 
 * Which hosts are available
-* Which services are available, and where they are from
+* Which sources are available, and where they are from
 * Which services need to run on which host
+
+It is possible for a single host to hold multiple sources. It is not yet possible
+to have a service in multiple hosts, but it shoudn't be too tricky to add.
 
 Example YAML:
 
@@ -45,10 +48,16 @@ hosts:
         ip: 0.0.0.1
     hostid2:
         ip: 0.0.0.2
+source:
+    source1:
+        source: https://git.uri/svc1.git
+    source2:
+        source: https://git.uri/svc2.git
 services:
     svc1:
-        source: https://git.uri/svc1.git
+        source: source1
         host: hostid1
     svc2:
-        source: https://git.uri/svc2.git
+        source: source2
         host: hostid2
+```
