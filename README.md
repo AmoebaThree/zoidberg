@@ -4,14 +4,20 @@ The Mastermind
 
 ## Prerequisites
 
+On nodes that will be running Zoidberg commands:
+
 - `pip install pyyaml`
+
+On nodes that will be receiveing Zoidberg commands:
+
+- `sudo apt-get install git`
 
 ## Command spec
 
 * zoidberg install
+  * Installs a system from scratch, destroying anything that currently exists
 * zoidberg update
-  * Install updates to the specified config
-  * `update` and `install` are synonymous
+  * Does a pull on all of the services in the config
 * zoidberg run file.yaml
 * zoidberg start file.yaml
   * Run the app specified in the config
@@ -20,6 +26,8 @@ The Mastermind
   * `start` and `run` are synonymous
 * zoidberg stop file.yaml
   * Stop the app specified in the config
+* zoidberg restart fiel.yaml
+  * Restart the app specified in the config
 
 ## Config file
 

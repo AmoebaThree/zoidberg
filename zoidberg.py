@@ -1,14 +1,73 @@
 import subprocess
 
+def install(config):
+    for svc, cfg in config['services'].items():
+        is_system = 'system' in cfg.keys() and cfg['system']
+
+        if is_system:
+            # Don't try to install systems
+            continue
+
+        if not 'source' in cfg.keys():
+            print('Service ' + svc + ' missing source')
+            continue
+
+        ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        sym_tgt = '~/.config/systemd/user/' + svc + '.service'
+        deploy_tgt = '~/zoidberg-deploy/' + svc
+        branch = 'master'
+
+        try:
+            print('Trying to install ' + svc + ' on ' + ip + ': ', end = '')
+            # Todo support checking if directory exists or not
+            subprocess.check_output(
+                [   'ssh', ip,
+                    'rm', '-rf', deploy_tgt, '&&',
+                    'rm', '-f', sym_tgt, '&&',
+                    'mkdir', '-p', deploy_tgt, '&&', 
+                    'cd', deploy_tgt, '&&',
+                    'git', 'clone', cfg['source'], '.', '&&',
+                    'git', 'checkout', branch, '&&',
+                    'ln', '-s', deploy_tgt + '/' + svc + '.service', sym_tgt])
+            print('OK')
+        except:
+            print('ERR')
+
 def update(config):
-    stop(config)
-    pass
+    for svc, cfg in config['services'].items():
+        is_system = 'system' in cfg.keys() and cfg['system']
+
+        if is_system:
+            # Don't try to update systems
+            continue
+
+        if not 'source' in cfg.keys():
+            print('Service ' + svc + ' missing source')
+            continue
+
+        ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        deploy_tgt = '~/zoidberg-deploy/' + svc
+        branch = 'master'
+
+        try:
+            print('Trying to update ' + svc + ' on ' + ip + ': ', end = '')
+            # Todo support checking if directory exists or not
+            subprocess.check_output(
+                [   'ssh', ip,
+                    'cd', deploy_tgt, '&&',
+                    'git', 'pull'])
+            print('OK')
+        except:
+            print('ERR')
 
 def run(config):
     systemctl_all(config, 'start')
 
 def stop(config):
     systemctl_all(config, 'stop')
+
+def restart(config):
+    systemctl_all(config, 'restart')
 
 def systemctl_all(config, cmd):
     for svc, cfg in config['services'].items():
@@ -44,8 +103,11 @@ if __name__ == '__main__':
     config_stream = open(args.config, 'r')
     config = yaml.safe_load(config_stream)
 
-    if args.operation == 'install' or args.operation == 'update':
-        print('Installing / updating')
+    if args.operation == 'install':
+        print('Installing')
+        install(config)
+    elif args.operation == 'update':
+        print('Updating')
         update(config)
     elif args.operation == 'run' or args.operation == 'start':
         print('Running')
@@ -53,5 +115,8 @@ if __name__ == '__main__':
     elif args.operation == 'stop':
         print('Stopping')
         stop(config)
+    elif args.operation == 'restart':
+        print('Restarting')
+        restart(config)
     else:
         raise(Exception('Unknown operation'))
