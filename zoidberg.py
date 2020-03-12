@@ -98,6 +98,7 @@ def update(config):
             subprocess.check_output(
                 [   'ssh', ip,
                     'cd', deploy_tgt, '&&',
+                    'git', 'reset', '--hard', '&&',
                     'git', 'pull'])
             print('OK')
         except:
