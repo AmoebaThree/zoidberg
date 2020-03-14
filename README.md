@@ -37,8 +37,9 @@ The YAML file specifies:
 * Which sources are available, and where they are from
 * Which services need to run on which host
 
-It is possible for a single host to hold multiple sources. It is not yet possible
-to have a service in multiple hosts, but it shoudn't be too tricky to add.
+It is possible for a single host to hold multiple sources and multiple services.
+It is possible for a single source to be used in multiple services, and those
+services to be on different machines.
 
 Example YAML:
 
