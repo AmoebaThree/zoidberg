@@ -33,9 +33,9 @@ def install(config):
         deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
         branch = 'master'
 
-        if not source in installed_sources:
+        if not source + ip in installed_sources:
             # Only install the source if it hasn't been done already
-            installed_sources.add(source)
+            installed_sources.add(source + ip)
             try:
                 print('Install source ' + cfg['source'] + ' on ' + ip)
                 # Todo support checking if directory exists or not
@@ -86,11 +86,11 @@ def update(config):
         deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
         branch = 'master'
 
-        if source in updated_sources:
+        if source + ip in updated_sources:
             # Skip if done already
             continue
 
-        updated_sources.add(source)
+        updated_sources.add(source + ip)
 
         try:
             print('Updating ' + cfg['source'] + ' on ' + ip)
