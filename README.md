@@ -35,7 +35,7 @@ Available instructions:
   - Deletes anything that currently exists for those services and starts from scratch
 - update
   - Updates the whole system or the specified services
-  - Assumes everything's in place already and does a git pull on master
+  - Assumes everything's in place already and does a git pull on the branch specified in the source
 - start
 - run
   - Start the whole system, or just the specified services
@@ -50,6 +50,8 @@ Available instructions:
 - install_prereqs
   - Installs the prerequisites for Zoidberg on the target nodes
   - Only needs to be done once per node
+- shutdown
+  - Shuts down the nodes
 
 ## Config file
 
@@ -74,6 +76,7 @@ hosts:
 source:
     source1:
         source: https://git.uri/svc1.git
+        branch: dev-branch
     source2:
         source: https://git.uri/svc2.git
 services:

@@ -5,153 +5,6 @@ import yaml
 import random
 
 
-def host_update(update_hosts):
-    for ip in update_hosts:
-        try:
-            print('Updating systemctl on ' + ip)
-            subprocess.check_call(
-                ['ssh', ip,
-                    'systemctl', '--user', 'daemon-reload'])
-            print('OK')
-        except:
-            print('ERR')
-
-
-def install(config):
-
-    update_hosts = set()
-    installed_sources = set()
-
-    for svc, cfg in config['services'].items():
-        is_system = 'system' in cfg.keys() and cfg['system']
-
-        if is_system:
-            # Don't try to install systems
-            continue
-
-        if not 'source' in cfg.keys() or cfg['source'] not in config['sources'].keys():
-            print('Service ' + svc + ' missing source')
-            continue
-
-        source = config['sources'][cfg['source']]['source']
-        ip = config['hosts'][cfg['host']]['user'] + \
-            '@' + config['hosts'][cfg['host']]['ip']
-        sym_tgt = '~/.config/systemd/user/' + svc + '.service'
-        deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
-        branch = 'master'
-
-        if not source + ip in installed_sources:
-            # Only install the source if it hasn't been done already
-            installed_sources.add(source + ip)
-            try:
-                print('Install source ' + cfg['source'] + ' on ' + ip)
-                # Todo support checking if directory exists or not
-                subprocess.check_call(
-                    ['ssh', ip,
-                        'rm', '-rf', deploy_tgt, '&&',
-                        'mkdir', '-p', deploy_tgt, '&&',
-                        'cd', deploy_tgt, '&&',
-                        'git', 'clone', source, '.', '&&',
-                        'git', 'checkout', branch])
-                print('OK')
-            except:
-                print('ERR')
-
-        # Now we can make the service
-        try:
-            print('Install service ' + svc + ' on ' + ip)
-            update_hosts.add(ip)
-            subprocess.check_call(
-                ['ssh', ip,
-                    'rm', '-f', sym_tgt, '&&',
-                    'ln', '-s', deploy_tgt + '/' + svc + '.service', sym_tgt])
-            print('OK')
-        except:
-            print('ERR')
-
-    host_update(update_hosts)
-
-
-def update(config):
-
-    update_hosts = set()
-    updated_sources = set()
-
-    for svc, cfg in config['services'].items():
-        is_system = 'system' in cfg.keys() and cfg['system']
-
-        if is_system:
-            # Don't try to update systems
-            continue
-
-        if not 'source' in cfg.keys() or cfg['source'] not in config['sources'].keys():
-            print('Service ' + svc + ' missing source')
-            continue
-
-        source = config['sources'][cfg['source']]['source']
-        ip = config['hosts'][cfg['host']]['user'] + \
-            '@' + config['hosts'][cfg['host']]['ip']
-        update_hosts.add(ip)
-        deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
-        branch = 'master'
-
-        if source + ip in updated_sources:
-            # Skip if done already
-            continue
-
-        updated_sources.add(source + ip)
-
-        try:
-            print('Updating ' + cfg['source'] + ' on ' + ip)
-            # Todo support checking if directory exists or not
-            subprocess.check_call(
-                ['ssh', ip,
-                    'cd', deploy_tgt, '&&',
-                    'git', 'reset', '--hard', '&&',
-                    'git', 'pull'])
-            print('OK')
-        except:
-            print('ERR')
-
-    host_update(update_hosts)
-
-
-def run(config):
-    systemctl_all(config, 'start')
-
-
-def stop(config):
-    systemctl_all(config, 'stop')
-
-
-def restart(config):
-    systemctl_all(config, 'restart')
-
-
-def systemctl_all(config, cmd):
-    for svc, cfg in config['services'].items():
-        is_system = 'system' in cfg.keys() and cfg['system']
-
-        if not 'host' in cfg.keys() or not cfg['host'] in config['hosts'].keys():
-            print('Service ' + svc + ' missing host')
-            continue
-
-        ip = config['hosts'][cfg['host']]['user'] + \
-            '@' + config['hosts'][cfg['host']]['ip']
-
-        try:
-            print(cmd + ' ' + svc + ' on ' + ip)
-            if is_system:
-                subprocess.check_call(
-                    ['ssh', ip, 'sudo', 'systemctl', cmd, svc], stderr=subprocess.STDOUT)
-            else:
-                subprocess.check_call(
-                    ['ssh', ip, 'systemctl', '--user', cmd, svc], stderr=subprocess.STDOUT)
-            print('OK')
-        except:
-            print('ERR')
-
-
 target_root = '/home/pi/zoidberg-deploy'
 target_script = target_root + '/zoidberg-deploy.py'
 
@@ -237,6 +90,12 @@ def update(config, remote_config, hosts, services):
     '''Update specified or all services'''
     execute_remote_service_command(
         config, remote_config, hosts, services, 'update', 'Updating services')
+
+
+def install(config, remote_config, hosts, services):
+    '''Install specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'install', 'Installing services')
 
 
 def install_prereqs(config, remote_config, hosts):
@@ -379,6 +238,8 @@ if __name__ == '__main__':
         restart(config, remote_config, affected_hosts, services)
     elif args.operation == 'update':
         update(config, remote_config, affected_hosts, services)
+    elif args.operation == 'install':
+        install(config, remote_config, affected_hosts, services)
     elif args.operation == 'install-prereqs':
         install_prereqs(config, remote_config, affected_hosts)
     elif args.operation == 'shutdown':
