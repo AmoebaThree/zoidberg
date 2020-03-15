@@ -3,16 +3,18 @@ import threading
 import argparse
 import yaml
 
+
 def host_update(update_hosts):
     for ip in update_hosts:
         try:
             print('Updating systemctl on ' + ip)
             subprocess.check_output(
-                [   'ssh', ip,
+                ['ssh', ip,
                     'systemctl', '--user', 'daemon-reload'])
             print('OK')
         except:
             print('ERR')
+
 
 def install(config):
 
@@ -31,7 +33,8 @@ def install(config):
             continue
 
         source = config['sources'][cfg['source']]['source']
-        ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        ip = config['hosts'][cfg['host']]['user'] + \
+            '@' + config['hosts'][cfg['host']]['ip']
         sym_tgt = '~/.config/systemd/user/' + svc + '.service'
         deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
         branch = 'master'
@@ -43,9 +46,9 @@ def install(config):
                 print('Install source ' + cfg['source'] + ' on ' + ip)
                 # Todo support checking if directory exists or not
                 subprocess.check_output(
-                    [   'ssh', ip,
+                    ['ssh', ip,
                         'rm', '-rf', deploy_tgt, '&&',
-                        'mkdir', '-p', deploy_tgt, '&&', 
+                        'mkdir', '-p', deploy_tgt, '&&',
                         'cd', deploy_tgt, '&&',
                         'git', 'clone', source, '.', '&&',
                         'git', 'checkout', branch])
@@ -58,7 +61,7 @@ def install(config):
             print('Install service ' + svc + ' on ' + ip)
             update_hosts.add(ip)
             subprocess.check_output(
-                [   'ssh', ip,
+                ['ssh', ip,
                     'rm', '-f', sym_tgt, '&&',
                     'ln', '-s', deploy_tgt + '/' + svc + '.service', sym_tgt])
             print('OK')
@@ -66,6 +69,7 @@ def install(config):
             print('ERR')
 
     host_update(update_hosts)
+
 
 def update(config):
 
@@ -84,7 +88,8 @@ def update(config):
             continue
 
         source = config['sources'][cfg['source']]['source']
-        ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        ip = config['hosts'][cfg['host']]['user'] + \
+            '@' + config['hosts'][cfg['host']]['ip']
         update_hosts.add(ip)
         deploy_tgt = '~/zoidberg-deploy/' + cfg['source']
         branch = 'master'
@@ -99,7 +104,7 @@ def update(config):
             print('Updating ' + cfg['source'] + ' on ' + ip)
             # Todo support checking if directory exists or not
             subprocess.check_output(
-                [   'ssh', ip,
+                ['ssh', ip,
                     'cd', deploy_tgt, '&&',
                     'git', 'reset', '--hard', '&&',
                     'git', 'pull'])
@@ -109,14 +114,18 @@ def update(config):
 
     host_update(update_hosts)
 
+
 def run(config):
     systemctl_all(config, 'start')
+
 
 def stop(config):
     systemctl_all(config, 'stop')
 
+
 def restart(config):
     systemctl_all(config, 'restart')
+
 
 def systemctl_all(config, cmd):
     for svc, cfg in config['services'].items():
@@ -126,23 +135,24 @@ def systemctl_all(config, cmd):
             print('Service ' + svc + ' missing host')
             continue
 
-        ip = config['hosts'][cfg['host']]['user'] + '@' + config['hosts'][cfg['host']]['ip']
+        ip = config['hosts'][cfg['host']]['user'] + \
+            '@' + config['hosts'][cfg['host']]['ip']
 
         try:
             print(cmd + ' ' + svc + ' on ' + ip)
             if is_system:
-                subprocess.check_output(['ssh', ip, 'sudo', 'systemctl', cmd, svc])
+                subprocess.check_output(
+                    ['ssh', ip, 'sudo', 'systemctl', cmd, svc])
             else:
-                subprocess.check_output(['ssh', ip, 'systemctl', '--user', cmd, svc])
+                subprocess.check_output(
+                    ['ssh', ip, 'systemctl', '--user', cmd, svc])
             print('OK')
         except:
             print('ERR')
 
 
-
-
-
 target_script = '~/zoidberg-deploy/zoidberg-deploy.py'
+
 
 def get_connection(config, host_name):
     '''Gets connection details for the specified host name'''
@@ -152,14 +162,17 @@ def get_connection(config, host_name):
     else:
         return host_details['ip']
 
+
 def thread_shutdown(target):
     '''Worker for shutting down targets'''
     print('Shutting down ' + target)
     try:
-        subprocess.check_output(['ssh', target, 'python', target_script, 'shutdown'])
+        subprocess.check_output(
+            ['ssh', target, 'python', target_script, 'shutdown'])
         print('Successfully shut down ' + target)
     except:
         print('ERROR shutting down ' + target)
+
 
 def shutdown(config, hosts):
     '''Shuts down the specified hosts'''
@@ -186,15 +199,18 @@ def shutdown(config, hosts):
         connection = get_connection(config, host)
         thread_shutdown(connection)
 
+
 def thread_update_zoidberg_deploy(target):
     '''Worker for zoidberg deploy threads'''
     print('Updating zoidberg-deploy on ' + target)
     try:
-        subprocess.check_output(['scp', 'zoidberg-deploy.py', target + ':' + target_script])
+        subprocess.check_output(
+            ['scp', 'zoidberg-deploy.py', target + ':' + target_script])
         subprocess.check_output(['ssh', target, 'chmod', '+x', target_script])
         print('Updated zoidberg-deploy on ' + target)
     except:
         print('ERROR updating zoidberg-deploy on ' + target)
+
 
 def update_zoidberg_deploy(config, hosts):
     '''Updates zoidberg deploy script on specified hosts'''
@@ -202,12 +218,14 @@ def update_zoidberg_deploy(config, hosts):
 
     for host in hosts:
         connection = get_connection(config, host)
-        thread = threading.Thread(target=thread_update_zoidberg_deploy, args=(connection,))
+        thread = threading.Thread(
+            target=thread_update_zoidberg_deploy, args=(connection,))
         threads.append(thread)
         thread.start()
 
     for thread in threads:
         thread.join()
+
 
 def sanitise_services(config, input_services):
     '''Filters the input services to be a sane list'''
@@ -224,10 +242,11 @@ def sanitise_services(config, input_services):
 
     return services
 
+
 def get_affected_hosts(config, services):
     '''Given some services, works out which hosts in the config need work executing'''
     hosts = set()
-    
+
     if len(services) == 0:
         services = config['services'].keys()
 
@@ -240,13 +259,15 @@ def get_affected_hosts(config, services):
 
     return hosts
 
+
 if __name__ == '__main__':
     print('(V) (°,,,,°) (V)')
 
     parser = argparse.ArgumentParser()
     parser.add_argument('config', help='Path to config YAML file')
     parser.add_argument('operation', help='Operation to execute')
-    parser.add_argument('services', nargs='*', help='Optional subset services to act on')
+    parser.add_argument('services', nargs='*',
+                        help='Optional subset services to act on')
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')

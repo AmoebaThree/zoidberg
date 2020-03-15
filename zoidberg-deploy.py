@@ -1,8 +1,10 @@
 import argparse
 import subprocess
 
+
 def execute_shutdown():
     subprocess.check_output(['sudo', 'shutdown', '-h', 'now'])
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
