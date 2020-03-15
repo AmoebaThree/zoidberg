@@ -2,6 +2,7 @@ import subprocess
 import threading
 import argparse
 import yaml
+import random
 
 
 def host_update(update_hosts):
@@ -142,16 +143,21 @@ def systemctl_all(config, cmd):
             print(cmd + ' ' + svc + ' on ' + ip)
             if is_system:
                 subprocess.check_output(
-                    ['ssh', ip, 'sudo', 'systemctl', cmd, svc])
+                    ['ssh', ip, 'sudo', 'systemctl', cmd, svc], stderr=subprocess.STDOUT)
             else:
                 subprocess.check_output(
-                    ['ssh', ip, 'systemctl', '--user', cmd, svc])
+                    ['ssh', ip, 'systemctl', '--user', cmd, svc], stderr=subprocess.STDOUT)
             print('OK')
         except:
             print('ERR')
 
 
-target_script = '~/zoidberg-deploy/zoidberg-deploy.py'
+target_root = '~/zoidberg-deploy'
+target_script = target_root + '/zoidberg-deploy.py'
+
+
+def get_temp_target_config():
+    return target_root + '/deploy_' + str(random.randrange(100000, 999999)) + ".yaml"
 
 
 def get_connection(config, host_name):
@@ -163,22 +169,98 @@ def get_connection(config, host_name):
         return host_details['ip']
 
 
-def thread_shutdown(target):
-    '''Worker for shutting down targets'''
-    print('Shutting down ' + target)
+def get_services_for_host(config, host, services):
+    '''Helper to return which services apply to the specified host'''
+    if len(services) == 0:
+        services = config['services'].keys()
+
+    found_services = []
+
+    for service in services:
+        if config['services'][service]['host'] == host:
+            found_services.append(service)
+
+    return found_services
+
+
+def thread_execute_on_connection(connection, desc, commands):
+    '''Helper to call one or more commands on a connection'''
+    print('START ' + desc + ' ' + connection)
     try:
-        subprocess.check_output(
-            ['ssh', target, 'python', target_script, 'shutdown'])
-        print('Successfully shut down ' + target)
+        subprocess.check_output(['ssh', connection] + commands,
+                                stderr=subprocess.STDOUT)
+        print('OK ' + desc + ' ' + connection)
     except:
-        print('ERROR shutting down ' + target)
+        print('ERROR ' + desc + ' ' + connection)
 
 
-def shutdown(config, hosts):
+def execute_remote_service_command(config, remote_config, hosts, services, command, description):
+    '''Helper for executing remote zoidberg commands'''
+    threads = []
+    args = ['python', target_script, remote_config, command]
+
+    for host in hosts:
+        connection = get_connection(config, host)
+        host_services = get_services_for_host(config, host, services)
+
+        if len(host_services) == 0:
+            continue
+
+        thread = threading.Thread(
+            target=thread_execute_on_connection, args=(connection, description, args + host_services))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+
+def start(config, remote_config, hosts, services):
+    '''Start specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'start', 'Starting services')
+
+
+def stop(config, remote_config, hosts, services):
+    '''Stop specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'stop', 'Stopping services')
+
+
+def restart(config, remote_config, hosts, services):
+    '''Restart specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'restart', 'Restarting services')
+
+
+def update(config, remote_config, hosts, services):
+    '''Update specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'update', 'Updating services')
+
+
+def install_prereqs(config, remote_config, hosts):
+    '''Installs zoidberg prereqs on the target hosts'''
+    threads = []
+    args = ['python', target_script, remote_config, 'install-prereqs']
+
+    for host in hosts:
+        connection = get_connection(config, host)
+
+        thread = threading.Thread(
+            target=thread_execute_on_connection, args=(connection, 'Installing prerequisites', args))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+
+def shutdown(config, remote_config, hosts):
     '''Shuts down the specified hosts'''
     threads = []
-
     masters = set()
+    args = ['python', target_script, remote_config, 'shutdown']
 
     for host in hosts:
         if 'master' in config['hosts'][host] and config['hosts'][host]['master']:
@@ -187,7 +269,8 @@ def shutdown(config, hosts):
             continue
 
         connection = get_connection(config, host)
-        thread = threading.Thread(target=thread_shutdown, args=(connection,))
+        thread = threading.Thread(
+            target=thread_execute_on_connection, args=(connection, 'Shutting down', args))
         threads.append(thread)
         thread.start()
 
@@ -197,29 +280,33 @@ def shutdown(config, hosts):
     # Sequentially shut down any masters
     for host in masters:
         connection = get_connection(config, host)
-        thread_shutdown(connection)
+        thread_execute_on_connection(connection, 'Shutting down', args)
 
 
-def thread_update_zoidberg_deploy(target):
+def thread_update_zoidberg_deploy(target, local_config, remote_config):
     '''Worker for zoidberg deploy threads'''
-    print('Updating zoidberg-deploy on ' + target)
+    print('START copy zoidberg-deploy to ' + target)
     try:
         subprocess.check_output(
-            ['scp', 'zoidberg-deploy.py', target + ':' + target_script])
-        subprocess.check_output(['ssh', target, 'chmod', '+x', target_script])
-        print('Updated zoidberg-deploy on ' + target)
+            ['scp', 'zoidberg-deploy.py', target + ':' + target_script], stderr=subprocess.STDOUT)
+        subprocess.check_output(
+            ['scp', local_config, target + ':' + remote_config], stderr=subprocess.STDOUT)
+        subprocess.check_output(['ssh', target, 'chmod', '+x', target_script],
+                                stderr=subprocess.STDOUT)
+        print('OK copy zoidberg-deploy to ' + target)
     except:
-        print('ERROR updating zoidberg-deploy on ' + target)
+        print(e)
+        print('ERROR copy zoidberg-deploy to ' + target)
 
 
-def update_zoidberg_deploy(config, hosts):
+def update_zoidberg_deploy(config, hosts, local_config, remote_config):
     '''Updates zoidberg deploy script on specified hosts'''
     threads = []
 
     for host in hosts:
         connection = get_connection(config, host)
         thread = threading.Thread(
-            target=thread_update_zoidberg_deploy, args=(connection,))
+            target=thread_update_zoidberg_deploy, args=(connection, local_config, remote_config))
         threads.append(thread)
         thread.start()
 
@@ -281,28 +368,20 @@ if __name__ == '__main__':
         exit(1)
 
     affected_hosts = get_affected_hosts(config, services)
-    update_zoidberg_deploy(config, affected_hosts)
+    remote_config = get_temp_target_config()
+    update_zoidberg_deploy(config, affected_hosts, args.config, remote_config)
 
-    if args.operation == 'shutdown':
-        shutdown(config, affected_hosts)
-    else:
-        raise(Exception('Unknown operation'))
-
-    exit(0)
-    if args.operation == 'install':
-        print('Installing')
-        install(config)
-    elif args.operation == 'update':
-        print('Updating')
-        update(config)
-    elif args.operation == 'run' or args.operation == 'start':
-        print('Starting')
-        run(config)
+    if args.operation in ['start', 'run']:
+        start(config, remote_config, affected_hosts, services)
     elif args.operation == 'stop':
-        print('Stopping')
-        stop(config)
+        stop(config, remote_config, affected_hosts, services)
     elif args.operation == 'restart':
-        print('Restarting')
-        restart(config)
+        restart(config, remote_config, affected_hosts, services)
+    elif args.operation == 'update':
+        update(config, remote_config, affected_hosts, services)
+    elif args.operation == 'install-prereqs':
+        install_prereqs(config, remote_config, affected_hosts)
+    elif args.operation == 'shutdown':
+        shutdown(config, remote_config, affected_hosts)
     else:
         raise(Exception('Unknown operation'))
