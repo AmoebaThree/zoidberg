@@ -9,7 +9,7 @@ def host_update(update_hosts):
     for ip in update_hosts:
         try:
             print('Updating systemctl on ' + ip)
-            subprocess.check_output(
+            subprocess.check_call(
                 ['ssh', ip,
                     'systemctl', '--user', 'daemon-reload'])
             print('OK')
@@ -46,7 +46,7 @@ def install(config):
             try:
                 print('Install source ' + cfg['source'] + ' on ' + ip)
                 # Todo support checking if directory exists or not
-                subprocess.check_output(
+                subprocess.check_call(
                     ['ssh', ip,
                         'rm', '-rf', deploy_tgt, '&&',
                         'mkdir', '-p', deploy_tgt, '&&',
@@ -61,7 +61,7 @@ def install(config):
         try:
             print('Install service ' + svc + ' on ' + ip)
             update_hosts.add(ip)
-            subprocess.check_output(
+            subprocess.check_call(
                 ['ssh', ip,
                     'rm', '-f', sym_tgt, '&&',
                     'ln', '-s', deploy_tgt + '/' + svc + '.service', sym_tgt])
@@ -104,7 +104,7 @@ def update(config):
         try:
             print('Updating ' + cfg['source'] + ' on ' + ip)
             # Todo support checking if directory exists or not
-            subprocess.check_output(
+            subprocess.check_call(
                 ['ssh', ip,
                     'cd', deploy_tgt, '&&',
                     'git', 'reset', '--hard', '&&',
@@ -142,17 +142,17 @@ def systemctl_all(config, cmd):
         try:
             print(cmd + ' ' + svc + ' on ' + ip)
             if is_system:
-                subprocess.check_output(
+                subprocess.check_call(
                     ['ssh', ip, 'sudo', 'systemctl', cmd, svc], stderr=subprocess.STDOUT)
             else:
-                subprocess.check_output(
+                subprocess.check_call(
                     ['ssh', ip, 'systemctl', '--user', cmd, svc], stderr=subprocess.STDOUT)
             print('OK')
         except:
             print('ERR')
 
 
-target_root = '~/zoidberg-deploy'
+target_root = '/home/pi/zoidberg-deploy'
 target_script = target_root + '/zoidberg-deploy.py'
 
 
@@ -187,8 +187,8 @@ def thread_execute_on_connection(connection, desc, commands):
     '''Helper to call one or more commands on a connection'''
     print('START ' + desc + ' ' + connection)
     try:
-        subprocess.check_output(['ssh', connection] + commands,
-                                stderr=subprocess.STDOUT)
+        subprocess.check_call(['ssh', connection] + commands,
+                              stderr=subprocess.STDOUT)
         print('OK ' + desc + ' ' + connection)
     except:
         print('ERROR ' + desc + ' ' + connection)
@@ -287,14 +287,14 @@ def thread_update_zoidberg_deploy(target, local_config, remote_config):
     '''Worker for zoidberg deploy threads'''
     print('START copy zoidberg-deploy to ' + target)
     try:
-        subprocess.check_output(
+        subprocess.check_call(
             ['scp', 'zoidberg-deploy.py', target + ':' + target_script], stderr=subprocess.STDOUT)
-        subprocess.check_output(
+        subprocess.check_call(
             ['scp', local_config, target + ':' + remote_config], stderr=subprocess.STDOUT)
-        subprocess.check_output(['ssh', target, 'chmod', '+x', target_script],
-                                stderr=subprocess.STDOUT)
+        subprocess.check_call(['ssh', target, 'chmod', '+x', target_script],
+                              stderr=subprocess.STDOUT)
         print('OK copy zoidberg-deploy to ' + target)
-    except:
+    except Exception as e:
         print(e)
         print('ERROR copy zoidberg-deploy to ' + target)
 

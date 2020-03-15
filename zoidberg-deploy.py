@@ -3,7 +3,7 @@ import subprocess
 import yaml
 import os
 
-root_dir = '~/zoidberg-deploy'
+root_dir = '/home/pi/zoidberg-deploy'
 
 
 def execute_systemctl(service_name, service_config, command):
@@ -13,10 +13,10 @@ def execute_systemctl(service_name, service_config, command):
 
     try:
         if is_system:
-            subprocess.check_output(
+            subprocess.check_call(
                 ['sudo', 'systemctl', command, service_name], stderr=subprocess.STDOUT)
         else:
-            subprocess.check_output(
+            subprocess.check_call(
                 ['systemctl', '--user', command, service_name], stderr=subprocess.STDOUT)
         print('OK systemctl ' + command + ' ' + service_name)
     except:
@@ -44,6 +44,13 @@ def start(config, services):
 def update(config, services):
     sources = set()
     for service in services:
+        service_config = config['services'][service]
+        is_system = 'system' in service_config and service_config['system']
+
+        if is_system:
+            print('Not updating ' + service + ' as it is system')
+            continue
+
         sources.add(config['services'][service]['source'])
 
     for source in sources:
@@ -51,24 +58,27 @@ def update(config, services):
             print('START Updating ' + source)
 
             target_dir = root_dir + '/' + source
-            subprocess.check_output(
-                ['cd', target_dir, '&&'
-                 'git', 'reset', '--hard', '&&',
-                 'git', 'pull'], stderr=subprocess.STDOUT)
+            subprocess.check_call(
+                ['git', 'reset', '--hard'], stderr=subprocess.STDOUT, cwd=target_dir)
+            subprocess.check_call(
+                ['git', 'checkout', 'master'], stderr=subprocess.STDOUT, cwd=target_dir)
+            subprocess.check_call(
+                ['git', 'pull'], stderr=subprocess.STDOUT, cwd=target_dir)
 
             print('OK Updating ' + source)
-        except:
+        except Exception as e:
+            print(e)
             print('ERROR Updating ' + source)
 
 
 def install_prereqs():
     print('START install deps')
     try:
-        subprocess.check_output(
+        subprocess.check_call(
             ['sudo', 'apt-get', 'install', 'python3', 'git', 'python3-pip', '-y'], stderr=subprocess.STDOUT)
-        subprocess.check_output(
+        subprocess.check_call(
             ['sudo', 'update-alternatives', '--set', 'python', '/usr/bin/python3'], stderr=subprocess.STDOUT)
-        subprocess.check_output(
+        subprocess.check_call(
             ['pip', 'install', 'pyyaml'], stderr=subprocess.STDOUT)
         print('OK install deps')
     except:
@@ -76,8 +86,8 @@ def install_prereqs():
 
 
 def execute_shutdown():
-    subprocess.check_output(['sudo', 'shutdown', '-h', 'now'],
-                            stderr=subprocess.STDOUT)
+    subprocess.check_call(['sudo', 'shutdown', '-h', 'now'],
+                          stderr=subprocess.STDOUT)
 
 
 if __name__ == '__main__':
