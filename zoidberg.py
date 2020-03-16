@@ -98,6 +98,12 @@ def install(config, remote_config, hosts, services):
         config, remote_config, hosts, services, 'install', 'Installing services')
 
 
+def ping(config, remote_config, hosts, services):
+    '''Ping'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'ping', 'Pinging')
+
+
 def install_prereqs(config, remote_config, hosts):
     '''Installs zoidberg prereqs on the target hosts'''
     threads = []
@@ -244,5 +250,7 @@ if __name__ == '__main__':
         install_prereqs(config, remote_config, affected_hosts)
     elif args.operation == 'shutdown':
         shutdown(config, remote_config, affected_hosts)
+    elif args.operation == 'ping':
+        ping(config, remote_config, affected_hosts, services)
     else:
         raise(Exception('Unknown operation'))

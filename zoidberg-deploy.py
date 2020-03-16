@@ -296,6 +296,8 @@ if __name__ == '__main__':
     elif args.operation == 'shutdown':
         os.remove(args.config)
         execute_shutdown()
+    elif args.operation == 'ping':
+        print('Pong')
 
     if os.path.exists(args.config):
         os.remove(args.config)

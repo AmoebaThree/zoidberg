@@ -52,6 +52,8 @@ Available instructions:
   - Only needs to be done once per node
 - shutdown
   - Shuts down the nodes
+- ping
+  - Does nothing other than try and copy the config to the nodes, as a rudimentary ping
 
 ## Config file
 
