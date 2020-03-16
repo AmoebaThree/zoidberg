@@ -39,6 +39,12 @@ def restart(config, services):
         execute_systemctl(service, service_config, 'restart')
 
 
+def status(config, services):
+    for service in services:
+        service_config = config['services'][service]
+        execute_systemctl(service, service_config, 'status')
+
+
 def stop(config, services):
     for service in services:
         service_config = config['services'][service]
@@ -287,6 +293,8 @@ if __name__ == '__main__':
         stop(config, args.services)
     elif args.operation == 'restart':
         restart(config, args.services)
+    elif args.operation == 'status':
+        status(config, args.services)
     elif args.operation == 'update':
         update(config, args.services)
     elif args.operation == 'install':

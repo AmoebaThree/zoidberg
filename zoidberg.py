@@ -86,6 +86,12 @@ def restart(config, remote_config, hosts, services):
         config, remote_config, hosts, services, 'restart', 'Restarting services')
 
 
+def status(config, remote_config, hosts, services):
+    '''Get status of specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'status', 'Getting status')
+
+
 def update(config, remote_config, hosts, services):
     '''Update specified or all services'''
     execute_remote_service_command(
@@ -242,6 +248,8 @@ if __name__ == '__main__':
         stop(config, remote_config, affected_hosts, services)
     elif args.operation == 'restart':
         restart(config, remote_config, affected_hosts, services)
+    elif args.operation == 'status':
+        status(config, remote_config, affected_hosts, services)
     elif args.operation == 'update':
         update(config, remote_config, affected_hosts, services)
     elif args.operation == 'install':
