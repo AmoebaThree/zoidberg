@@ -145,6 +145,47 @@ def update(config, services):
     update_systemctl()
 
 
+def sideload(config, services):
+    sideload_services = set()
+    source_prereqs = dict()
+
+    for service in services:
+        service_config = config['services'][service]
+        is_system = 'system' in service_config and service_config['system']
+
+        if is_system:
+            print('Not sideloading ' + service + ' as it is system')
+            continue
+
+        sideload_services.add(service)
+
+    for source in sideload_services:
+        try:
+            print('START Sideloading ' + source)
+
+            target_dir = root_dir + '/' + source
+            source_dir = root_dir + '/sideload-' + source
+
+            subprocess.check_call(
+                ['rm', '-rf', target_dir], stderr=subprocess.STDOUT, cwd=root_dir)
+
+            subprocess.check_call(
+                ['mv', source_dir, target_dir], stderr=subprocess.STDOUT, cwd=root_dir)
+
+            print('OK Sideloading ' + source)
+        except Exception as e:
+            print(e)
+            print('ERROR Sideloading ' + source)
+
+        source_config_file = target_dir + '/prereqs.yaml'
+        if os.path.exists(source_config_file):
+            source_config_stream = open(source_config_file, 'r')
+            source_prereqs[source] = yaml.safe_load(source_config_stream)
+
+    execute_scripts(source_prereqs, services, 'update')
+    update_systemctl()
+
+
 def install(config, services):
     sources = set()
     source_prereqs = dict()
@@ -297,6 +338,8 @@ if __name__ == '__main__':
         status(config, args.services)
     elif args.operation == 'update':
         update(config, args.services)
+    elif args.operation == 'sideload':
+        sideload(config, args.services)
     elif args.operation == 'install':
         install(config, args.services)
     elif args.operation == 'install-prereqs':

@@ -104,6 +104,39 @@ def install(config, remote_config, hosts, services):
         config, remote_config, hosts, services, 'install', 'Installing services')
 
 
+def sideload(config, remote_config, hosts, services, source):
+    '''Sideload a specified service with local code'''
+    if len(services) != 1:
+        print('ERROR Must be only one service when sideloading')
+        return
+
+    if source is None:
+        print('ERROR Source must be specified for sideloading')
+        return
+
+    service = next(iter(services))
+    host = next(iter(hosts))
+    connection = get_connection(config, host)
+    sideload_dir = target_root + '/sideload-' + service
+
+    try:
+        # Empty existing sideload dir
+        subprocess.check_call(['ssh', connection, 'rm', '-rf', sideload_dir],
+                              stderr=subprocess.STDOUT)
+
+        # rsync over the files to be sideloaded
+        print('START syncing files to target')
+        subprocess.check_call(
+            ['rsync', '-a', '--exclude', '\'.*\'', source, connection + ':' + sideload_dir], stderr=subprocess.STDOUT)
+
+        # Excute update on target
+        execute_remote_service_command(
+            config, remote_config, hosts, services, 'sideload', 'Sideloading ' + service)
+    except Exception as e:
+        print(e)
+        print('ERROR sideload ' + service + ' to ' + connection)
+
+
 def ping(config, remote_config, hosts, services):
     '''Ping'''
     execute_remote_service_command(
@@ -226,6 +259,8 @@ if __name__ == '__main__':
     parser.add_argument('operation', help='Operation to execute')
     parser.add_argument('services', nargs='*',
                         help='Optional subset services to act on')
+    parser.add_argument(
+        '--source', nargs='?', help='Source path for sideload operation', type=str, default=None)
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')
@@ -254,6 +289,8 @@ if __name__ == '__main__':
         update(config, remote_config, affected_hosts, services)
     elif args.operation == 'install':
         install(config, remote_config, affected_hosts, services)
+    elif args.operation == 'sideload':
+        sideload(config, remote_config, affected_hosts, services, args.source)
     elif args.operation == 'install-prereqs':
         install_prereqs(config, remote_config, affected_hosts)
     elif args.operation == 'shutdown':
