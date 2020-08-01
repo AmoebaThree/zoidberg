@@ -134,10 +134,12 @@ def sideload(config, remote_config, hosts, services, source, restart):
         print('ERROR sideload ' + service + ' to ' + connection)
 
 
-def install(config, remote_config, hosts, services):
+def install(config, remote_config, hosts, services, execute_prereqs):
     '''Install specified or all services'''
+    args = [] if execute_prereqs else ['-p']
+
     execute_remote_service_command(
-        config, remote_config, hosts, services, 'install', 'Installing services')
+        config, remote_config, hosts, services, 'install', 'Installing services', args)
 
 
 def ping(config, remote_config, hosts, services):
@@ -264,8 +266,10 @@ if __name__ == '__main__':
                         help='Optional subset services to act on')
     parser.add_argument(
         '--source', nargs='?', help='Sideload: Source path for sideload operation', type=str, default=None)
-    parser.add_argument("-r", "--restart", action="store_true",
-                        help="Update, Sideload: Also restart the systemctl service after the operation")
+    parser.add_argument('-r', '--restart', action='store_true',
+                        help='Update, Sideload: Also restart the systemctl service after the operation')
+    parser.add_argument('-p', '--no-prereqs', action='store_false',
+                        help='Install: Don\'t install the prerequisites')
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')
@@ -296,7 +300,8 @@ if __name__ == '__main__':
         sideload(config, remote_config, affected_hosts,
                  services, args.source, args.restart)
     elif args.operation == 'install':
-        install(config, remote_config, affected_hosts, services)
+        install(config, remote_config, affected_hosts,
+                services, args.no_prereqs)
     elif args.operation == 'install-prereqs':
         install_prereqs(config, remote_config, affected_hosts)
     elif args.operation == 'shutdown':

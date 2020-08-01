@@ -192,7 +192,7 @@ def sideload(config, services, execute_restart):
         restart(config, services)
 
 
-def install(config, services):
+def install(config, services, execute_prereqs):
     sources = set()
     source_prereqs = dict()
     apt = set()
@@ -281,7 +281,7 @@ def install(config, services):
                 if 'pip' in service_config:
                     pip.update(service_config['pip'])
 
-    if len(apt) > 0:
+    if execute_prereqs and len(apt) > 0:
         try:
             print('START apt package install: ' + ', '.join(apt))
             subprocess.check_call(
@@ -290,7 +290,7 @@ def install(config, services):
         except:
             print('ERROR apt package install')
 
-    if len(pip) > 0:
+    if execute_prereqs and len(pip) > 0:
         try:
             print('START pip package install: ' + ', '.join(pip))
             subprocess.check_call(['pip', 'install'] + list(pip),
@@ -328,8 +328,10 @@ if __name__ == '__main__':
     parser.add_argument('operation', help='Operation to execute')
     parser.add_argument('services', nargs='*',
                         help='Optional subset services to act on')
-    parser.add_argument("-r", "--restart", action="store_true",
-                        help="Update, Sideload: Also restart the systemctl service after the operation")
+    parser.add_argument('-r', '--restart', action='store_true',
+                        help='Update, Sideload: Also restart the systemctl service after the operation')
+    parser.add_argument('-p', '--no-prereqs', action='store_false',
+                        help='Install: Don\'t install the prerequisites')
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')
@@ -349,7 +351,7 @@ if __name__ == '__main__':
     elif args.operation == 'sideload':
         sideload(config, args.services, args.restart)
     elif args.operation == 'install':
-        install(config, args.services)
+        install(config, args.services, args.no_prereqs)
     elif args.operation == 'install-prereqs':
         install_prereqs()
     elif args.operation == 'shutdown':
