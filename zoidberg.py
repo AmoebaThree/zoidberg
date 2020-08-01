@@ -47,7 +47,7 @@ def thread_execute_on_connection(connection, desc, commands):
         print('ERROR ' + desc + ' ' + connection)
 
 
-def execute_remote_service_command(config, remote_config, hosts, services, command, description):
+def execute_remote_service_command(config, remote_config, hosts, services, command, description, extra_args=[]):
     '''Helper for executing remote zoidberg commands'''
     threads = []
     args = ['python', target_script, remote_config, command]
@@ -60,7 +60,7 @@ def execute_remote_service_command(config, remote_config, hosts, services, comma
             continue
 
         thread = threading.Thread(
-            target=thread_execute_on_connection, args=(connection, description, args + host_services))
+            target=thread_execute_on_connection, args=(connection, description, args + host_services + extra_args))
         threads.append(thread)
         thread.start()
 
@@ -92,23 +92,20 @@ def status(config, remote_config, hosts, services):
         config, remote_config, hosts, services, 'status', 'Getting status')
 
 
-def update(config, remote_config, hosts, services):
+def update(config, remote_config, hosts, services, restart):
     '''Update specified or all services'''
+    args = ['-r'] if restart else []
     execute_remote_service_command(
-        config, remote_config, hosts, services, 'update', 'Updating services')
+        config, remote_config, hosts, services, 'update', 'Updating services', args)
 
 
-def install(config, remote_config, hosts, services):
-    '''Install specified or all services'''
-    execute_remote_service_command(
-        config, remote_config, hosts, services, 'install', 'Installing services')
-
-
-def sideload(config, remote_config, hosts, services, source):
+def sideload(config, remote_config, hosts, services, source, restart):
     '''Sideload a specified service with local code'''
     if len(services) != 1:
         print('ERROR Must be only one service when sideloading')
         return
+
+    args = ['-r'] if restart else []
 
     if source is None:
         print('ERROR Source must be specified for sideloading')
@@ -131,10 +128,16 @@ def sideload(config, remote_config, hosts, services, source):
 
         # Excute update on target
         execute_remote_service_command(
-            config, remote_config, hosts, services, 'sideload', 'Sideloading ' + service)
+            config, remote_config, hosts, services, 'sideload', 'Sideloading ' + service, args)
     except Exception as e:
         print(e)
         print('ERROR sideload ' + service + ' to ' + connection)
+
+
+def install(config, remote_config, hosts, services):
+    '''Install specified or all services'''
+    execute_remote_service_command(
+        config, remote_config, hosts, services, 'install', 'Installing services')
 
 
 def ping(config, remote_config, hosts, services):
@@ -260,7 +263,9 @@ if __name__ == '__main__':
     parser.add_argument('services', nargs='*',
                         help='Optional subset services to act on')
     parser.add_argument(
-        '--source', nargs='?', help='Source path for sideload operation', type=str, default=None)
+        '--source', nargs='?', help='Sideload: Source path for sideload operation', type=str, default=None)
+    parser.add_argument("-r", "--restart", action="store_true",
+                        help="Update, Sideload: Also restart the systemctl service after the operation")
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')
@@ -286,11 +291,12 @@ if __name__ == '__main__':
     elif args.operation == 'status':
         status(config, remote_config, affected_hosts, services)
     elif args.operation == 'update':
-        update(config, remote_config, affected_hosts, services)
+        update(config, remote_config, affected_hosts, services, args.restart)
+    elif args.operation == 'sideload':
+        sideload(config, remote_config, affected_hosts,
+                 services, args.source, args.restart)
     elif args.operation == 'install':
         install(config, remote_config, affected_hosts, services)
-    elif args.operation == 'sideload':
-        sideload(config, remote_config, affected_hosts, services, args.source)
     elif args.operation == 'install-prereqs':
         install_prereqs(config, remote_config, affected_hosts)
     elif args.operation == 'shutdown':

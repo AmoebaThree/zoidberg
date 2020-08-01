@@ -97,7 +97,7 @@ def execute_scripts(source_prereqs, services, script_name):
                 print('ERROR ' + script_name + ' scripts for ' + source)
 
 
-def update(config, services):
+def update(config, services, execute_restart):
     sources = set()
     source_prereqs = dict()
 
@@ -144,8 +144,11 @@ def update(config, services):
     execute_scripts(source_prereqs, services, 'update')
     update_systemctl()
 
+    if execute_restart:
+        restart(config, services)
 
-def sideload(config, services):
+
+def sideload(config, services, execute_restart):
     sideload_services = set()
     source_prereqs = dict()
 
@@ -184,6 +187,9 @@ def sideload(config, services):
 
     execute_scripts(source_prereqs, services, 'update')
     update_systemctl()
+
+    if execute_restart:
+        restart(config, services)
 
 
 def install(config, services):
@@ -322,6 +328,8 @@ if __name__ == '__main__':
     parser.add_argument('operation', help='Operation to execute')
     parser.add_argument('services', nargs='*',
                         help='Optional subset services to act on')
+    parser.add_argument("-r", "--restart", action="store_true",
+                        help="Update, Sideload: Also restart the systemctl service after the operation")
     args = parser.parse_args()
 
     print('Parsing configuration file "' + args.config + '"')
@@ -337,9 +345,9 @@ if __name__ == '__main__':
     elif args.operation == 'status':
         status(config, args.services)
     elif args.operation == 'update':
-        update(config, args.services)
+        update(config, args.services, args.restart)
     elif args.operation == 'sideload':
-        sideload(config, args.services)
+        sideload(config, args.services, args.restart)
     elif args.operation == 'install':
         install(config, args.services)
     elif args.operation == 'install-prereqs':
