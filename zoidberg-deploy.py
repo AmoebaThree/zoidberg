@@ -166,7 +166,7 @@ def sideload(config, services, execute_restart):
         try:
             print('START Sideloading ' + source)
 
-            target_dir = root_dir + '/' + source
+            target_dir = root_dir + '/' + config['services'][service]['source']
             source_dir = root_dir + '/sideload-' + source
 
             subprocess.check_call(
